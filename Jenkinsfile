@@ -10,15 +10,14 @@ pipeline {
         stage('Setup') {
             steps {
                 script {
-                    // Create virtual environment if it does not exist
                     if (!fileExists("${env.WORKSPACE}/${VIRTUAL_ENV}")) {
                         sh "python -m venv ${VIRTUAL_ENV}"
                     }
 
-                    // Activate and install dependencies
                     sh """
                         source ${VIRTUAL_ENV}/bin/activate
                         pip install -r requirements.txt
+                        pip install coverage bandit
                     """
                 }
             }
@@ -35,6 +34,17 @@ pipeline {
             }
         }
 
+        stage('Security Scan') {
+            steps {
+                script {
+                    sh """
+                        source ${VIRTUAL_ENV}/bin/activate
+                        bandit -r .
+                    """
+                }
+            }
+        }
+
         stage('Test') {
             steps {
                 script {
@@ -46,10 +56,30 @@ pipeline {
             }
         }
 
+        stage('Coverage') {
+            steps {
+                script {
+                    sh """
+                        source ${VIRTUAL_ENV}/bin/activate
+                        coverage run -m pytest
+                        coverage report -m
+                    """
+                }
+            }
+        }
+
         stage('Deploy') {
             steps {
                 script {
-                    echo "Deploying application..."
+                    echo "Starting deployment..."
+
+                    sh """
+                        source ${VIRTUAL_ENV}/bin/activate
+                        mkdir -p deployed_app
+                        cp -r app.py deployed_app/
+                    """
+
+                    echo " Deployment complete "
                 }
             }
         }
